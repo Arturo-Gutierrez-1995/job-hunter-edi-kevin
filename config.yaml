@@ -1,0 +1,100 @@
+profile:
+  name: "Kevin Arturo Gutiérrez Bañuelos"
+  target_roles:
+    - EDI Analyst
+    - Senior EDI Analyst
+    - EDI Specialist
+    - EDI Support Engineer
+    - Integration Support Engineer
+    - B2B Integration Engineer
+    - Application Support Engineer
+    - Middleware Engineer
+    - SAP PO Support
+    - SAP Integration Engineer
+    - Technical Integration Engineer
+  target_locations:
+    - Remote
+    - Mexico
+    - United States
+    - Canada
+    - LATAM
+    - Guadalajara
+    - Monterrey
+    - Querétaro
+    - CDMX
+  target_salary:
+    mexico_mxn_month_min: 50000
+    mexico_mxn_month_ideal: 70000
+    us_usd_year_min: 90000
+
+filters:
+  notify_match_min: 80
+  store_match_min: 55
+  max_jobs_per_source: 80
+  include_keywords:
+    - edi
+    - x12
+    - edifact
+    - as2
+    - sftp
+    - ftp
+    - mdn
+    - trading partner
+    - b2b
+    - integration
+    - integrations
+    - middleware
+    - ibm sterling
+    - sterling integrator
+    - axway
+    - b2bi
+    - stedi
+    - opentext
+    - seeburger
+    - sap
+    - idoc
+    - sap po
+    - sap pi
+    - sap cpi
+    - sap integration suite
+    - servicenow
+    - application support
+    - production support
+    - incident management
+    - api
+    - postman
+    - json
+    - xml
+    - oauth
+    - bigquery
+  exclude_keywords:
+    - nurse
+    - physician
+    - driver
+    - warehouse associate
+    - restaurant
+    - cashier
+    - marketing intern
+    - sales representative
+    - real estate
+    - insurance agent
+
+sources:
+  remoteok: true
+  arbeitnow: true
+  lever: true
+  greenhouse: true
+
+# Add ATS slugs from company career pages.
+# Example Lever URL: https://jobs.lever.co/companyslug  -> companyslug
+lever_companies:
+  - stedi
+  - stripe
+  - samsara
+
+# Example Greenhouse URL: https://job-boards.greenhouse.io/companyslug -> companyslug
+# Some companies use boards.greenhouse.io/companyslug.
+greenhouse_companies:
+  - opentext
+  - lattice
+  - mulesoft
