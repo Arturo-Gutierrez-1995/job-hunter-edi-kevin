@@ -1,5 +1,6 @@
 profile:
   name: "Kevin Arturo Gutiérrez Bañuelos"
+
   target_roles:
     - EDI Analyst
     - Senior EDI Analyst
@@ -8,118 +9,249 @@ profile:
     - Integration Support Engineer
     - B2B Integration Engineer
     - Application Support Engineer
+    - Application Support Analyst
     - Middleware Engineer
     - SAP PO Support
+    - SAP PI/PO Support
     - SAP Integration Engineer
+    - SAP Integration Analyst
     - Technical Integration Engineer
+    - Production Support Engineer
+    - Trading Partner Specialist
+    - IBM Sterling Integrator Engineer
+    - B2B/EDI Support Engineer
+    - MFT Engineer
+    - EDI Consultant
+
   target_locations:
     - Remote
     - Mexico
-    - United States
-    - Canada
-    - LATAM
+    - México
     - Guadalajara
     - Monterrey
     - Querétaro
     - CDMX
+    - Ciudad de México
+    - Ramos Arizpe
+    - Saltillo
+    - United States
+    - USA
+    - Canada
+    - LATAM
+    - Latin America
+
   target_salary:
     mexico_mxn_month_min: 50000
     mexico_mxn_month_ideal: 70000
+    mexico_mxn_month_max: 90000
     us_usd_year_min: 90000
+    us_usd_year_ideal: 120000
+
 
 filters:
-  notify_match_min: 25
-  store_match_min: 25
+  # Producción:
+  # Guarda en Notion desde 55%
+  # Manda Telegram desde 80%
+  notify_match_min: 80
+  store_match_min: 55
+
   max_jobs_per_source: 80
   gmail_lookback_days: 7
+
   include_keywords:
+    # EDI / B2B
     - edi
     - x12
     - edifact
     - as2
     - sftp
     - ftp
+    - mft
     - mdn
+    - ack
+    - 997
+    - 850
+    - 855
+    - 856
+    - 810
+    - 860
+    - 864
     - trading partner
+    - partner onboarding
     - b2b
+    - b2b integration
+    - b2b integrations
     - integration
     - integrations
+    - integration support
+    - application support
+    - production support
     - middleware
+    - connectivity
+    - mapping
+    - data mapping
+    - envelope
+    - validation
+    - troubleshooting
+    - incident management
+    - sla
+
+    # Platforms
     - ibm sterling
     - sterling integrator
+    - ibm sterling integrator
+    - sterling b2b
     - axway
+    - axway b2bi
     - b2bi
     - stedi
     - opentext
     - seeburger
+    - boomi
+    - mulesoft
     - sap
     - idoc
+    - idocs
     - sap po
     - sap pi
+    - sap pi/po
     - sap cpi
     - sap integration suite
     - servicenow
-    - application support
-    - production support
-    - incident management
+    - walmart retail link
+    - retail link
+
+    # APIs / Data / Automation
     - api
+    - rest api
+    - soap
     - postman
     - json
     - xml
     - oauth
+    - oauth 2.0
     - bigquery
+    - sql
+    - python
+    - aws
+    - azure
+    - linux
+
+    # Industries
+    - retail
+    - logistics
+    - manufacturing
+    - automotive
+    - supply chain
+    - erp
+    - warehouse
+    - order management
+
   exclude_keywords:
+    # Ruido no relacionado
     - nurse
     - physician
+    - doctor
     - driver
     - warehouse associate
-    - restaurant
     - cashier
-    - marketing intern
-    - sales representative
+    - restaurant
+    - cook
+    - waiter
+    - bartender
     - real estate
     - insurance agent
+    - sales representative
+    - marketing intern
+    - social media
+    - influencer
+    - graphic designer
+    - product designer
+    - account executive
+    - business development representative
+    - bdr
+    - sdr
+    - recruiter
+    - talent acquisition
+    - people operations
+    - finance manager
+    - accountant
+    - payroll
+    - customer service representative
+    - call center
+    - help desk level 1
+
 
 sources:
+  # Apagamos fuentes genéricas porque estaban trayendo mucho ruido.
   remoteok: false
   arbeitnow: false
+
+  # Estas siguen activas.
   lever: true
   greenhouse: true
   gmail_alerts: true
 
-# Direct public ATS boards
+
+# Public ATS boards.
+# Si alguna empresa no usa Lever o Greenhouse, el script la ignora sin problema.
 lever_companies:
   - stedi
-  - stripe
   - samsara
+  - stripe
+  - rippling
+  - datadog
+  - zapier
+  - checkout
+  - plaid
 
 greenhouse_companies:
   - opentext
-  - lattice
   - mulesoft
+  - elastic
+  - gitlab
+  - hashicorp
+  - cloudflare
+  - okta
+  - twilio
 
-# Gmail job-alert sources. Create email alerts in these platforms and label them JobHunter in Gmail.
+
+# Gmail job-alert sources.
+# Crea alertas en estas plataformas y etiqueta los correos como JobHunter.
 gmail_alert_sources:
   LinkedIn:
     domains:
       - linkedin.com
+      - linkedinmail.com
     link_patterns:
       - linkedin.com/jobs/view
       - linkedin.com/comm/jobs/view
+      - linkedin.com/jobs
+      - linkedin.com/jobs/collections
+
   Indeed:
     domains:
       - indeed.com
       - indeed.com.mx
+      - indeedemail.com
     link_patterns:
       - indeed.com/viewjob
       - indeed.com/rc/clk
       - indeed.com/jobs
+      - indeed.com.mx/viewjob
+      - indeed.com.mx/rc/clk
+      - indeed.com.mx/jobs
+
   OCC:
     domains:
       - occ.com.mx
+      - occmundial.com
     link_patterns:
       - occ.com.mx/empleo/oferta
       - occ.com.mx/empleos
+      - occ.com.mx/trabajo
+      - occmundial.com
+
   Computrabajo:
     domains:
       - computrabajo.com.mx
@@ -127,12 +259,18 @@ gmail_alert_sources:
     link_patterns:
       - computrabajo.com.mx/ofertas-de-trabajo
       - computrabajo.com/ofertas-de-trabajo
+      - computrabajo.com.mx/trabajo-de
+      - computrabajo.com/trabajo-de
+
   Glassdoor:
     domains:
       - glassdoor.com
       - glassdoor.com.mx
+      - glassdooremail.com
     link_patterns:
       - glassdoor.com/job-listing
       - glassdoor.com.mx/job-listing
       - glassdoor.com/partner/jobListing
       - glassdoor.com.mx/partner/jobListing
+      - glassdoor.com/Job
+      - glassdoor.com.mx/Job
