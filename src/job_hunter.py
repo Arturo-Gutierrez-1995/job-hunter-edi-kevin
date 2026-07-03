@@ -696,37 +696,80 @@ def send_telegram(job: Dict[str, Any], analysis: Dict[str, Any], notion_url: Opt
 
 def main() -> None:
     config = load_config()
+
+    print("Environment check:")
+    print(f"- NOTION_TOKEN: {'OK' if NOTION_TOKEN else 'MISSING'}")
+    print(f"- NOTION_DATABASE_ID: {'OK' if NOTION_DATABASE_ID else 'MISSING'}")
+    print(f"- TELEGRAM_BOT_TOKEN: {'OK' if TELEGRAM_BOT_TOKEN else 'MISSING'}")
+    print(f"- TELEGRAM_CHAT_ID: {'OK' if TELEGRAM_CHAT_ID else 'MISSING'}")
+    print(f"- GMAIL_USER: {'OK' if GMAIL_USER else 'MISSING'}")
+    print(f"- GMAIL_APP_PASSWORD: {'OK' if GMAIL_APP_PASSWORD else 'MISSING'}")
+    print(f"- GMAIL_LABEL: {GMAIL_LABEL or 'MISSING'}")
+
+    remoteok_jobs = fetch_remoteok(config)
+    arbeitnow_jobs = fetch_arbeitnow(config)
+    lever_jobs = fetch_lever(config)
+    greenhouse_jobs = fetch_greenhouse(config)
+    gmail_jobs = fetch_gmail_alerts(config)
+
+    print("Source counts:")
+    print(f"- RemoteOK: {len(remoteok_jobs)}")
+    print(f"- Arbeitnow: {len(arbeitnow_jobs)}")
+    print(f"- Lever: {len(lever_jobs)}")
+    print(f"- Greenhouse: {len(greenhouse_jobs)}")
+    print(f"- Gmail alerts: {len(gmail_jobs)}")
+
     all_jobs = []
-    all_jobs.extend(fetch_remoteok(config))
-    all_jobs.extend(fetch_arbeitnow(config))
-    all_jobs.extend(fetch_lever(config))
-    all_jobs.extend(fetch_greenhouse(config))
-    all_jobs.extend(fetch_gmail_alerts(config))
+    all_jobs.extend(remoteok_jobs)
+    all_jobs.extend(arbeitnow_jobs)
+    all_jobs.extend(lever_jobs)
+    all_jobs.extend(greenhouse_jobs)
+    all_jobs.extend(gmail_jobs)
 
     jobs = filter_relevant(all_jobs, config)
     print(f"Fetched: {len(all_jobs)} | Relevant after filters: {len(jobs)}")
 
     notify_min = int(config["filters"].get("notify_match_min", 80))
     store_min = int(config["filters"].get("store_match_min", 55))
+
+    scored_jobs = []
+    for job in jobs:
+        analysis = score_job(job, config)
+        scored_jobs.append((analysis["overall_match"], job, analysis))
+    scored_jobs.sort(key=lambda x: x[0], reverse=True)
+
+    print("Top scored jobs:")
+    for score, job, analysis in scored_jobs[:10]:
+        print(f"- {score}% | {job.get('source','')} | {job.get('company','')} | {job.get('title','')[:120]} | {job.get('url','')[:120]}")
+
     created = 0
     notified = 0
+    duplicates = 0
+    below_store = 0
+    notion_failures = 0
 
-    for job in jobs:
+    for score, job, analysis in scored_jobs:
         h = job.get("hash") or job_hash(job)
         job["hash"] = h
         if notion_find_by_hash(h):
+            duplicates += 1
             continue
 
-        analysis = score_job(job, config)
         if analysis["overall_match"] < store_min:
+            below_store += 1
             continue
 
         notion_url = notion_create_job(job, analysis)
-        created += 1
+        if notion_url:
+            created += 1
+        else:
+            notion_failures += 1
+
         if analysis["overall_match"] >= notify_min:
             send_telegram(job, analysis, notion_url)
             notified += 1
 
+    print(f"Below store threshold: {below_store} | Duplicates: {duplicates} | Notion write failures: {notion_failures}")
     print(f"Created in Notion: {created} | Telegram notifications: {notified}")
 
 
