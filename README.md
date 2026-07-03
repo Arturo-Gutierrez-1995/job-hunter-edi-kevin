@@ -1,4 +1,4 @@
-# Job Hunter EDI - Kevin
+# Job Hunter EDI - Kevin v2
 
 Free automation stack:
 
@@ -6,8 +6,9 @@ Free automation stack:
 - Notion as CRM
 - Telegram for notifications
 - GitHub Actions for scheduled execution
+- Gmail job alerts for LinkedIn, Indeed, OCC, Computrabajo, and Glassdoor
 
-## 1. Install locally
+## 1. Local install
 
 ```bash
 python -m venv .venv
@@ -25,26 +26,37 @@ Fill `.env` with your real tokens.
 python src/job_hunter.py
 ```
 
-## 3. GitHub Actions
+## 3. GitHub secrets
 
-Create a private GitHub repo, upload these files, then add secrets:
+Create these secrets under:
 
-- NOTION_TOKEN
-- NOTION_DATABASE_ID
-- TELEGRAM_BOT_TOKEN
-- TELEGRAM_CHAT_ID
+`Settings → Secrets and variables → Actions → New repository secret`
 
-The workflow runs Monday-Friday every 4 hours and can also be started manually.
+Required:
 
-## 4. Configure sources
+- `NOTION_TOKEN`
+- `NOTION_DATABASE_ID`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
 
-Edit `config.yaml`:
+Optional for LinkedIn / Indeed / OCC / Computrabajo / Glassdoor via email alerts:
 
-- Add Lever slugs under `lever_companies`
-- Add Greenhouse slugs under `greenhouse_companies`
-- Adjust match thresholds
-- Add/remove keywords
+- `GMAIL_USER`
+- `GMAIL_APP_PASSWORD`
+- `GMAIL_LABEL` with value `JobHunter`
 
-## 5. Free mode vs AI mode
+## 4. Gmail setup
 
-This project is free by default because it uses local keyword scoring. Claude API is optional and not required.
+1. Create job alerts in LinkedIn, Indeed, OCC, Computrabajo, and Glassdoor.
+2. In Gmail, create a label named `JobHunter`.
+3. Create filters that apply the `JobHunter` label to those alert emails.
+4. Enable 2-Step Verification in your Google Account.
+5. Create an App Password and save it as `GMAIL_APP_PASSWORD` in GitHub secrets.
+
+## 5. GitHub Actions workflow
+
+Use only one workflow file:
+
+`.github/workflows/action.yml`
+
+The workflow runs manually with `workflow_dispatch` and automatically on a UTC cron schedule aligned with Mexico City business hours.
