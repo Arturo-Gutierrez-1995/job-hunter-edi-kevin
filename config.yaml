@@ -31,6 +31,7 @@ filters:
   notify_match_min: 80
   store_match_min: 55
   max_jobs_per_source: 80
+  gmail_lookback_days: 7
   include_keywords:
     - edi
     - x12
@@ -84,56 +85,54 @@ sources:
   arbeitnow: true
   lever: true
   greenhouse: true
+  gmail_alerts: true
 
-# Add ATS slugs from company career pages.
-# Example Lever URL: https://jobs.lever.co/companyslug  -> companyslug
+# Direct public ATS boards
 lever_companies:
   - stedi
   - stripe
   - samsara
 
-# Example Greenhouse URL: https://job-boards.greenhouse.io/companyslug -> companyslug
-# Some companies use boards.greenhouse.io/companyslug.
 greenhouse_companies:
   - opentext
   - lattice
   - mulesoft
 
-name: Job Hunter EDI
-
-on:
-  workflow_dispatch:
-  schedule:
-    # GitHub Actions schedules run in UTC.
-    # Mexico City approx: 7:17, 11:17, 15:17 Mon-Fri
-    - cron: '17 13,17,21 * * 1-5'
-    # Mexico City approx: 19:17 Mon-Fri, converted to next-day UTC
-    - cron: '17 1 * * 2-6'
-
-jobs:
-  run-job-hunter:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run job hunter
-        env:
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          GMAIL_LABEL: ${{ secrets.GMAIL_LABEL }}
-        run: python src/job_hunter.py  
+# Gmail job-alert sources. Create email alerts in these platforms and label them JobHunter in Gmail.
+gmail_alert_sources:
+  LinkedIn:
+    domains:
+      - linkedin.com
+    link_patterns:
+      - linkedin.com/jobs/view
+      - linkedin.com/comm/jobs/view
+  Indeed:
+    domains:
+      - indeed.com
+      - indeed.com.mx
+    link_patterns:
+      - indeed.com/viewjob
+      - indeed.com/rc/clk
+      - indeed.com/jobs
+  OCC:
+    domains:
+      - occ.com.mx
+    link_patterns:
+      - occ.com.mx/empleo/oferta
+      - occ.com.mx/empleos
+  Computrabajo:
+    domains:
+      - computrabajo.com.mx
+      - computrabajo.com
+    link_patterns:
+      - computrabajo.com.mx/ofertas-de-trabajo
+      - computrabajo.com/ofertas-de-trabajo
+  Glassdoor:
+    domains:
+      - glassdoor.com
+      - glassdoor.com.mx
+    link_patterns:
+      - glassdoor.com/job-listing
+      - glassdoor.com.mx/job-listing
+      - glassdoor.com/partner/jobListing
+      - glassdoor.com.mx/partner/jobListing
