@@ -28,8 +28,8 @@ profile:
     us_usd_year_min: 90000
 
 filters:
-  notify_match_min: 80
-  store_match_min: 55
+  notify_match_min: 25
+  store_match_min: 25
   max_jobs_per_source: 80
   gmail_lookback_days: 7
   include_keywords:
