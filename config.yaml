@@ -22,6 +22,8 @@ profile:
     - B2B/EDI Support Engineer
     - MFT Engineer
     - EDI Consultant
+    - Business Analist
+    - Analista
 
   target_locations:
     - Remote
@@ -41,11 +43,11 @@ profile:
     - Latin America
 
   target_salary:
-    mexico_mxn_month_min: 50000
+    mexico_mxn_month_min: 40000
     mexico_mxn_month_ideal: 70000
     mexico_mxn_month_max: 90000
-    us_usd_year_min: 90000
-    us_usd_year_ideal: 120000
+    us_usd_year_min: 36000
+    us_usd_year_ideal: 100000
 
 filters:
   notify_match_min: 75
@@ -134,6 +136,10 @@ filters:
     - erp
     - warehouse
     - order management
+    - analist
+    - analista
+    - data
+    - datos
 
   exclude_keywords:
     - nurse
