@@ -81,8 +81,8 @@ filters:
     - insurance agent
 
 sources:
-  remoteok: true
-  arbeitnow: true
+  remoteok: false
+  arbeitnow: false
   lever: true
   greenhouse: true
   gmail_alerts: true
