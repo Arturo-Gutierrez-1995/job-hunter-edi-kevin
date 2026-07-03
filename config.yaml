@@ -47,19 +47,13 @@ profile:
     us_usd_year_min: 90000
     us_usd_year_ideal: 120000
 
-
 filters:
-  # Producción:
-  # Guarda en Notion desde 55%
-  # Manda Telegram desde 80%
   notify_match_min: 80
   store_match_min: 55
-
   max_jobs_per_source: 80
   gmail_lookback_days: 7
 
   include_keywords:
-    # EDI / B2B
     - edi
     - x12
     - edifact
@@ -69,13 +63,13 @@ filters:
     - mft
     - mdn
     - ack
-    - 997
-    - 850
-    - 855
-    - 856
-    - 810
-    - 860
-    - 864
+    - "997"
+    - "850"
+    - "855"
+    - "856"
+    - "810"
+    - "860"
+    - "864"
     - trading partner
     - partner onboarding
     - b2b
@@ -95,8 +89,6 @@ filters:
     - troubleshooting
     - incident management
     - sla
-
-    # Platforms
     - ibm sterling
     - sterling integrator
     - ibm sterling integrator
@@ -120,8 +112,6 @@ filters:
     - servicenow
     - walmart retail link
     - retail link
-
-    # APIs / Data / Automation
     - api
     - rest api
     - soap
@@ -136,8 +126,6 @@ filters:
     - aws
     - azure
     - linux
-
-    # Industries
     - retail
     - logistics
     - manufacturing
@@ -148,7 +136,6 @@ filters:
     - order management
 
   exclude_keywords:
-    # Ruido no relacionado
     - nurse
     - physician
     - doctor
@@ -181,20 +168,13 @@ filters:
     - call center
     - help desk level 1
 
-
 sources:
-  # Apagamos fuentes genéricas porque estaban trayendo mucho ruido.
   remoteok: false
   arbeitnow: false
-
-  # Estas siguen activas.
   lever: true
   greenhouse: true
   gmail_alerts: true
 
-
-# Public ATS boards.
-# Si alguna empresa no usa Lever o Greenhouse, el script la ignora sin problema.
 lever_companies:
   - stedi
   - samsara
@@ -202,7 +182,6 @@ lever_companies:
   - rippling
   - datadog
   - zapier
-  - checkout
   - plaid
 
 greenhouse_companies:
@@ -215,9 +194,6 @@ greenhouse_companies:
   - okta
   - twilio
 
-
-# Gmail job-alert sources.
-# Crea alertas en estas plataformas y etiqueta los correos como JobHunter.
 gmail_alert_sources:
   LinkedIn:
     domains:
