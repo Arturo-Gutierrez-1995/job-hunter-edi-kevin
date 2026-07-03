@@ -36,6 +36,20 @@ HEADERS = {
     "User-Agent": "KevinJobHunter/1.0 (+https://github.com/)"
 }
 
+NOTION_SCHEMA_CACHE: Optional[Dict[str, Any]] = None
+
+EMAIL_NEGATIVE_KEYWORDS = {
+    "password", "contraseña", "restablecido", "reset", "security", "seguridad",
+    "unsubscribe", "desuscribir", "lamentamos que te vayas", "newsletter",
+    "verification", "verificación", "codigo", "código", "account", "cuenta"
+}
+
+EMAIL_JOB_SIGNAL_KEYWORDS = {
+    "job", "jobs", "vacante", "vacantes", "empleo", "empleos", "opportunity", "opportunities",
+    "alert", "alerta", "hiring", "contratando", "application", "aplicar", "apply",
+    "edi", "integration", "integraciones", "analyst", "specialist", "engineer", "support"
+}
+
 PROFILE_SKILLS = {
     "edi", "x12", "edifact", "as2", "sftp", "ftp", "mdn", "trading partner", "b2b",
     "ibm sterling", "sterling integrator", "axway", "b2bi", "stedi", "sap", "idoc",
@@ -524,6 +538,12 @@ def fetch_gmail_alerts(config: Dict[str, Any]) -> List[Dict[str, Any]]:
             msg = email_lib.message_from_bytes(fetched[0][1])
             subject = decode_mime_header(msg.get("Subject", ""))
             sender = decode_mime_header(msg.get("From", ""))
+            subject_blob = normalize_text(f"{subject} {sender}")
+            if any(bad in subject_blob for bad in EMAIL_NEGATIVE_KEYWORDS):
+                continue
+            if not any(signal in subject_blob for signal in EMAIL_JOB_SIGNAL_KEYWORDS):
+                # Avoid treating generic LinkedIn/security/newsletter emails as job alerts.
+                continue
             plain_body, html_body = get_message_body(msg)
             body_text = clean_html(plain_body or html_body_to_text(html_body))
 
@@ -599,8 +619,54 @@ def notion_headers() -> Dict[str, str]:
     }
 
 
+def notion_get_schema() -> Dict[str, Any]:
+    """Return Notion database properties. This makes the script tolerant to databases
+    where the title property is named Name, Vacante, Puesto, etc. instead of Title.
+    """
+    global NOTION_SCHEMA_CACHE
+    if NOTION_SCHEMA_CACHE is not None:
+        return NOTION_SCHEMA_CACHE
+    if not NOTION_TOKEN or not NOTION_DATABASE_ID:
+        NOTION_SCHEMA_CACHE = {}
+        return NOTION_SCHEMA_CACHE
+
+    url = f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}"
+    try:
+        r = requests.get(url, headers=notion_headers(), timeout=25)
+        if r.status_code >= 400:
+            print("Notion schema error:", r.status_code, r.text[:800])
+        r.raise_for_status()
+        NOTION_SCHEMA_CACHE = r.json().get("properties", {})
+        title_prop = notion_title_property(NOTION_SCHEMA_CACHE)
+        print(f"Notion title property detected: {title_prop or 'MISSING'}")
+        return NOTION_SCHEMA_CACHE
+    except Exception as e:
+        print(f"Notion schema error: {e}")
+        NOTION_SCHEMA_CACHE = {}
+        return NOTION_SCHEMA_CACHE
+
+
+def notion_title_property(schema: Dict[str, Any]) -> Optional[str]:
+    for prop_name, meta in schema.items():
+        if meta.get("type") == "title":
+            return prop_name
+    return None
+
+
+def notion_prop_exists(schema: Dict[str, Any], prop_name: str, expected_type: Optional[str] = None) -> bool:
+    if prop_name not in schema:
+        return False
+    if expected_type is None:
+        return True
+    return schema[prop_name].get("type") == expected_type
+
+
 def notion_find_by_hash(h: str) -> Optional[str]:
     if not NOTION_TOKEN or not NOTION_DATABASE_ID:
+        return None
+    schema = notion_get_schema()
+    if not notion_prop_exists(schema, "Job Hash", "rich_text"):
+        print("Notion duplicate check skipped: 'Job Hash' rich_text property not found.")
         return None
     url = f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}/query"
     payload = {"filter": {"property": "Job Hash", "rich_text": {"equals": h}}}
@@ -626,26 +692,42 @@ def notion_create_job(job: Dict[str, Any], analysis: Dict[str, Any]) -> Optional
     missing_skills = [{"name": s[:100]} for s in analysis.get("missing_skills", [])[:8]]
 
     title = job.get("title", "Untitled Job")[:180]
-    properties = {
-        "Title": {"title": [{"text": {"content": title}}]},
-        "Company": {"rich_text": [{"text": {"content": str(job.get("company", ""))[:180]}}]},
-        "Status": {"select": {"name": "Nueva"}},
-        "Match %": {"number": analysis.get("overall_match", 0)},
-        "Technical Match %": {"number": analysis.get("technical_match", 0)},
-        "ATS Match %": {"number": analysis.get("ats_match", 0)},
-        "Priority": {"select": {"name": analysis.get("priority", "Review")[:100]}},
-        "Source": {"select": {"name": str(job.get("source", "Unknown"))[:100]}},
-        "Location": {"rich_text": [{"text": {"content": str(job.get("location", ""))[:180]}}]},
-        "Remote Type": {"select": {"name": str(job.get("remote_type", "Unknown"))[:100]}},
-        "Salary": {"rich_text": [{"text": {"content": str(job.get("salary", ""))[:180]}}]},
-        "URL": {"url": job.get("url") or None},
-        "Date Found": {"date": {"start": now_date}},
-        "Job Hash": {"rich_text": [{"text": {"content": job.get("hash", "")}}]},
-        "Top Skills": {"multi_select": top_skills},
-        "Missing Skills": {"multi_select": missing_skills},
-        "Recommendation": {"rich_text": [{"text": {"content": analysis.get("recommendation", "")[:1900]}}]},
-        "Recruiter Message": {"rich_text": [{"text": {"content": analysis.get("recruiter_message", "")[:1900]}}]},
+    schema = notion_get_schema()
+    title_prop = notion_title_property(schema)
+    if not title_prop:
+        print("Notion create skipped: no title property found in database.")
+        return None
+
+    desired_properties = {
+        title_prop: ("title", {"title": [{"text": {"content": title}}]}),
+        "Company": ("rich_text", {"rich_text": [{"text": {"content": str(job.get("company", ""))[:180]}}]}),
+        "Status": ("select", {"select": {"name": "Nueva"}}),
+        "Match %": ("number", {"number": analysis.get("overall_match", 0)}),
+        "Technical Match %": ("number", {"number": analysis.get("technical_match", 0)}),
+        "ATS Match %": ("number", {"number": analysis.get("ats_match", 0)}),
+        "Priority": ("select", {"select": {"name": analysis.get("priority", "Review")[:100]}}),
+        "Source": ("select", {"select": {"name": str(job.get("source", "Unknown"))[:100]}}),
+        "Location": ("rich_text", {"rich_text": [{"text": {"content": str(job.get("location", ""))[:180]}}]}),
+        "Remote Type": ("select", {"select": {"name": str(job.get("remote_type", "Unknown"))[:100]}}),
+        "Salary": ("rich_text", {"rich_text": [{"text": {"content": str(job.get("salary", ""))[:180]}}]}),
+        "URL": ("url", {"url": job.get("url") or None}),
+        "Date Found": ("date", {"date": {"start": now_date}}),
+        "Job Hash": ("rich_text", {"rich_text": [{"text": {"content": job.get("hash", "")}}]}),
+        "Top Skills": ("multi_select", {"multi_select": top_skills}),
+        "Missing Skills": ("multi_select", {"multi_select": missing_skills}),
+        "Recommendation": ("rich_text", {"rich_text": [{"text": {"content": analysis.get("recommendation", "")[:1900]}}]}),
+        "Recruiter Message": ("rich_text", {"rich_text": [{"text": {"content": analysis.get("recruiter_message", "")[:1900]}}]}),
     }
+
+    properties = {}
+    skipped_props = []
+    for prop_name, (expected_type, value) in desired_properties.items():
+        if notion_prop_exists(schema, prop_name, expected_type):
+            properties[prop_name] = value
+        else:
+            skipped_props.append(prop_name)
+    if skipped_props:
+        print("Notion properties skipped because they are missing or have a different type:", ", ".join(skipped_props))
     children = [
         {"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "AI Analysis"}}]}},
         {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": analysis.get("recommendation", "")[:1900]}}]}},
@@ -696,37 +778,80 @@ def send_telegram(job: Dict[str, Any], analysis: Dict[str, Any], notion_url: Opt
 
 def main() -> None:
     config = load_config()
+
+    print("Environment check:")
+    print(f"- NOTION_TOKEN: {'OK' if NOTION_TOKEN else 'MISSING'}")
+    print(f"- NOTION_DATABASE_ID: {'OK' if NOTION_DATABASE_ID else 'MISSING'}")
+    print(f"- TELEGRAM_BOT_TOKEN: {'OK' if TELEGRAM_BOT_TOKEN else 'MISSING'}")
+    print(f"- TELEGRAM_CHAT_ID: {'OK' if TELEGRAM_CHAT_ID else 'MISSING'}")
+    print(f"- GMAIL_USER: {'OK' if GMAIL_USER else 'MISSING'}")
+    print(f"- GMAIL_APP_PASSWORD: {'OK' if GMAIL_APP_PASSWORD else 'MISSING'}")
+    print(f"- GMAIL_LABEL: {GMAIL_LABEL or 'MISSING'}")
+
+    remoteok_jobs = fetch_remoteok(config)
+    arbeitnow_jobs = fetch_arbeitnow(config)
+    lever_jobs = fetch_lever(config)
+    greenhouse_jobs = fetch_greenhouse(config)
+    gmail_jobs = fetch_gmail_alerts(config)
+
+    print("Source counts:")
+    print(f"- RemoteOK: {len(remoteok_jobs)}")
+    print(f"- Arbeitnow: {len(arbeitnow_jobs)}")
+    print(f"- Lever: {len(lever_jobs)}")
+    print(f"- Greenhouse: {len(greenhouse_jobs)}")
+    print(f"- Gmail alerts: {len(gmail_jobs)}")
+
     all_jobs = []
-    all_jobs.extend(fetch_remoteok(config))
-    all_jobs.extend(fetch_arbeitnow(config))
-    all_jobs.extend(fetch_lever(config))
-    all_jobs.extend(fetch_greenhouse(config))
-    all_jobs.extend(fetch_gmail_alerts(config))
+    all_jobs.extend(remoteok_jobs)
+    all_jobs.extend(arbeitnow_jobs)
+    all_jobs.extend(lever_jobs)
+    all_jobs.extend(greenhouse_jobs)
+    all_jobs.extend(gmail_jobs)
 
     jobs = filter_relevant(all_jobs, config)
     print(f"Fetched: {len(all_jobs)} | Relevant after filters: {len(jobs)}")
 
     notify_min = int(config["filters"].get("notify_match_min", 80))
     store_min = int(config["filters"].get("store_match_min", 55))
+
+    scored_jobs = []
+    for job in jobs:
+        analysis = score_job(job, config)
+        scored_jobs.append((analysis["overall_match"], job, analysis))
+    scored_jobs.sort(key=lambda x: x[0], reverse=True)
+
+    print("Top scored jobs:")
+    for score, job, analysis in scored_jobs[:10]:
+        print(f"- {score}% | {job.get('source','')} | {job.get('company','')} | {job.get('title','')[:120]} | {job.get('url','')[:120]}")
+
     created = 0
     notified = 0
+    duplicates = 0
+    below_store = 0
+    notion_failures = 0
 
-    for job in jobs:
+    for score, job, analysis in scored_jobs:
         h = job.get("hash") or job_hash(job)
         job["hash"] = h
         if notion_find_by_hash(h):
+            duplicates += 1
             continue
 
-        analysis = score_job(job, config)
         if analysis["overall_match"] < store_min:
+            below_store += 1
             continue
 
         notion_url = notion_create_job(job, analysis)
-        created += 1
+        if notion_url:
+            created += 1
+        else:
+            notion_failures += 1
+
         if analysis["overall_match"] >= notify_min:
             send_telegram(job, analysis, notion_url)
             notified += 1
 
+    print(f"Below store threshold: {below_store} | Duplicates: {duplicates} | Notion write failures: {notion_failures}")
     print(f"Created in Notion: {created} | Telegram notifications: {notified}")
 
 
