@@ -1,0 +1,38 @@
+name: Job Hunter EDI
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub Actions schedules run in UTC.
+    # Mexico City approx: 7:17, 11:17, 15:17 Mon-Fri
+    - cron: '17 13,17,21 * * 1-5'
+    # Mexico City approx: 19:17 Mon-Fri, converted to next-day UTC
+    - cron: '17 1 * * 2-6'
+
+jobs:
+  run-job-hunter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run job hunter
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GMAIL_LABEL: ${{ secrets.GMAIL_LABEL }}
+        run: python src/job_hunter.py
