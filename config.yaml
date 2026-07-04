@@ -52,7 +52,7 @@ profile:
 
 filters:
   notify_match_min: 50
-  store_match_min: 25
+  store_match_min: 50
   max_jobs_per_source: 100
   gmail_lookback_days: 7
 
