@@ -29,6 +29,10 @@ GMAIL_USER = os.getenv("GMAIL_USER", "").strip()
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "").strip().replace(" ", "")
 GMAIL_LABEL = os.getenv("GMAIL_LABEL", "JobHunter").strip() or "JobHunter"
 
+ICLOUD_USER = os.getenv("ICLOUD_USER", "").strip()
+ICLOUD_APP_PASSWORD = os.getenv("ICLOUD_APP_PASSWORD", "").strip().replace(" ", "")
+ICLOUD_MAILBOX = os.getenv("ICLOUD_MAILBOX", "INBOX").strip() or "INBOX"
+
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CONFIG_PATH = os.path.join(ROOT_DIR, "config.yaml")
 
@@ -119,16 +123,9 @@ def job_hash(job: Dict[str, Any]) -> str:
     return hashlib.sha256(base.encode("utf-8")).hexdigest()[:32]
 
 
-def contains_any(text: str, keywords: List[Any]) -> bool:
-    """Return True if any keyword is present in text.
-
-    YAML parses unquoted numeric values such as 850 or 997 as integers.
-    This function normalizes every keyword to string so config.yaml can contain
-    numeric EDI transaction codes without crashing the workflow.
-    """
+def contains_any(text: str, keywords: List[str]) -> bool:
     lowered = normalize_text(text)
-    safe_keywords = [str(k).lower().strip() for k in (keywords or []) if k is not None]
-    return any(k in lowered for k in safe_keywords if k)
+    return any(k.lower() in lowered for k in keywords)
 
 
 def score_job(job: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
@@ -334,7 +331,7 @@ def fetch_lever(config: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "posted_at": "",
             }
             jobs.append(job)
-    return jobs[: config.get("filters", {}).get("max_jobs_per_source", 80)]
+    return jobs
 
 
 def fetch_greenhouse(config: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -366,7 +363,7 @@ def fetch_greenhouse(config: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "posted_at": item.get("updated_at", ""),
             }
             jobs.append(job)
-    return jobs[: config.get("filters", {}).get("max_jobs_per_source", 80)]
+    return jobs
 
 
 GENERIC_LINK_TEXT = {
@@ -510,11 +507,16 @@ def make_title_from_email(subject: str, anchor_text: str, source: str) -> str:
     return f"{source} job alert"
 
 
-def fetch_gmail_alerts(config: Dict[str, Any]) -> List[Dict[str, Any]]:
-    if not config.get("sources", {}).get("gmail_alerts"):
-        return []
-    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
-        print("Gmail env vars missing. Skipping Gmail job alerts.")
+def fetch_imap_alerts(
+    config: Dict[str, Any],
+    provider: str,
+    host: str,
+    user: str,
+    app_password: str,
+    mailbox: str,
+) -> List[Dict[str, Any]]:
+    if not user or not app_password:
+        print(f"{provider} env vars missing. Skipping {provider} job alerts.")
         return []
 
     jobs: List[Dict[str, Any]] = []
@@ -522,17 +524,17 @@ def fetch_gmail_alerts(config: Dict[str, Any]) -> List[Dict[str, Any]]:
     since_date = (datetime.now() - timedelta(days=lookback_days)).strftime("%d-%b-%Y")
 
     try:
-        mail = imaplib.IMAP4_SSL("imap.gmail.com")
-        mail.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+        mail = imaplib.IMAP4_SSL(host)
+        mail.login(user, app_password)
 
-        status, _ = mail.select(f'"{GMAIL_LABEL}"')
+        status, _ = mail.select(f'"{mailbox}"')
         if status != "OK":
-            print(f"Gmail label '{GMAIL_LABEL}' not found. Falling back to INBOX.")
+            print(f"{provider} mailbox '{mailbox}' not found. Falling back to INBOX.")
             mail.select("INBOX")
 
         status, data = mail.search(None, f'(SINCE "{since_date}")')
         if status != "OK":
-            print("Gmail search returned no usable result.")
+            print(f"{provider} search returned no usable result.")
             mail.logout()
             return []
 
@@ -563,7 +565,7 @@ def fetch_gmail_alerts(config: Dict[str, Any]) -> List[Dict[str, Any]]:
                 if not contains_any(digest_blob, config.get("filters", {}).get("include_keywords", [])):
                     continue
                 jobs.append({
-                    "source": f"Gmail Alert - {source_guess}",
+                    "source": f"{provider} Alert - {source_guess}",
                     "title": make_title_from_email(subject, "", source_guess),
                     "company": source_guess,
                     "location": "",
@@ -579,7 +581,7 @@ def fetch_gmail_alerts(config: Dict[str, Any]) -> List[Dict[str, Any]]:
                 source = detect_gmail_source(sender, subject, href, config)
                 title = make_title_from_email(subject, anchor_text, source)
                 jobs.append({
-                    "source": f"Gmail Alert - {source}",
+                    "source": f"{provider} Alert - {source}",
                     "title": title,
                     "company": source,
                     "location": "",
@@ -593,9 +595,25 @@ def fetch_gmail_alerts(config: Dict[str, Any]) -> List[Dict[str, Any]]:
         mail.close()
         mail.logout()
     except Exception as e:
-        print(f"Gmail alerts error: {e}")
+        print(f"{provider} alerts error: {e}")
 
     return jobs[: config.get("filters", {}).get("max_jobs_per_source", 80)]
+
+
+def fetch_gmail_alerts(config: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if not config.get("sources", {}).get("gmail_alerts"):
+        return []
+    return fetch_imap_alerts(
+        config, "Gmail", "imap.gmail.com", GMAIL_USER, GMAIL_APP_PASSWORD, GMAIL_LABEL
+    )
+
+
+def fetch_icloud_alerts(config: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if not config.get("sources", {}).get("icloud_alerts"):
+        return []
+    return fetch_imap_alerts(
+        config, "iCloud", "imap.mail.me.com", ICLOUD_USER, ICLOUD_APP_PASSWORD, ICLOUD_MAILBOX
+    )
 
 
 def filter_relevant(jobs: List[Dict[str, Any]], config: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -794,12 +812,16 @@ def main() -> None:
     print(f"- GMAIL_USER: {'OK' if GMAIL_USER else 'MISSING'}")
     print(f"- GMAIL_APP_PASSWORD: {'OK' if GMAIL_APP_PASSWORD else 'MISSING'}")
     print(f"- GMAIL_LABEL: {GMAIL_LABEL or 'MISSING'}")
+    print(f"- ICLOUD_USER: {'OK' if ICLOUD_USER else 'MISSING'}")
+    print(f"- ICLOUD_APP_PASSWORD: {'OK' if ICLOUD_APP_PASSWORD else 'MISSING'}")
+    print(f"- ICLOUD_MAILBOX: {ICLOUD_MAILBOX or 'MISSING'}")
 
     remoteok_jobs = fetch_remoteok(config)
     arbeitnow_jobs = fetch_arbeitnow(config)
     lever_jobs = fetch_lever(config)
     greenhouse_jobs = fetch_greenhouse(config)
     gmail_jobs = fetch_gmail_alerts(config)
+    icloud_jobs = fetch_icloud_alerts(config)
 
     print("Source counts:")
     print(f"- RemoteOK: {len(remoteok_jobs)}")
@@ -807,6 +829,7 @@ def main() -> None:
     print(f"- Lever: {len(lever_jobs)}")
     print(f"- Greenhouse: {len(greenhouse_jobs)}")
     print(f"- Gmail alerts: {len(gmail_jobs)}")
+    print(f"- iCloud alerts: {len(icloud_jobs)}")
 
     all_jobs = []
     all_jobs.extend(remoteok_jobs)
@@ -814,6 +837,7 @@ def main() -> None:
     all_jobs.extend(lever_jobs)
     all_jobs.extend(greenhouse_jobs)
     all_jobs.extend(gmail_jobs)
+    all_jobs.extend(icloud_jobs)
 
     jobs = filter_relevant(all_jobs, config)
     print(f"Fetched: {len(all_jobs)} | Relevant after filters: {len(jobs)}")
