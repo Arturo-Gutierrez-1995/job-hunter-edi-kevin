@@ -178,6 +178,7 @@ sources:
   lever: true
   greenhouse: true
   gmail_alerts: true
+  icloud_alerts: true
 
 lever_companies:
   - stedi
