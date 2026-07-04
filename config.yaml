@@ -54,7 +54,7 @@ profile:
     us_usd_year_ideal: 48000
 
 filters:
-  notify_match_min: 50
+  notify_match_min: 75
   store_match_min: 50
   max_jobs_per_source: 100
   gmail_lookback_days: 7
