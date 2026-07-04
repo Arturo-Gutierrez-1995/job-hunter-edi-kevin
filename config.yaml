@@ -23,7 +23,8 @@ profile:
     - MFT Engineer
     - EDI Consultant
     - Business Analist
-    - Analista
+    - Analista de datos
+    - Data Analyst
 
   target_locations:
     - Remote
@@ -43,11 +44,11 @@ profile:
     - Latin America
 
   target_salary:
-    mexico_mxn_month_min: 40000
-    mexico_mxn_month_ideal: 70000
-    mexico_mxn_month_max: 90000
+    mexico_mxn_month_min: 30000
+    mexico_mxn_month_ideal: 50000
+    mexico_mxn_month_max: 80000
     us_usd_year_min: 36000
-    us_usd_year_ideal: 100000
+    us_usd_year_ideal: 48000
 
 filters:
   notify_match_min: 75
@@ -136,10 +137,12 @@ filters:
     - erp
     - warehouse
     - order management
-    - analist
+    - analyst
     - analista
     - data
     - datos
+    - data analyst
+    - analista de datos
 
   exclude_keywords:
     - nurse
